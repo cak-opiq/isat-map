@@ -11,98 +11,39 @@
             margin: 0;
             padding: 0;
         }
-
-#map {
-  height: 100%;
-  width: 100%;
-  padding: 0px;
-  margin: 0px;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  color: #333;
-}
-
-#was {
-  width: 300px;
-  height: 35px;
-  line-height: 35px;
-  text-align: center;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.7);
-  position: absolute;
-  top: 10px;
-  left: calc(50% - 150px);
-  margin: auto;
-  z-index: 2000;
-  display: inline-block;
-  border: 1px solid #7585F0;
-}
-
-span {
-  display: inline-block;
-  vertical-align: middle;
-  font-weight: bold;
-}
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
     </style>
 </head>
 
 <body>
-<div id="was"><span>Leaflet Search Control 
-Example</span></div>
-<div id="map"></div>
-    
-    
+    <div id="map"></div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
-    <script src="http://labs.easyblog.it/maps/leaflet-search/src/leaflet-search.js"></script>
-    
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
     <script>
-        var map = new L.Map('map', {
-  zoom: 5,
-  center: new L.latLng([-2,112.674])
-});
-
-map.addLayer(new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')); //base layer
-
-//create empty geoJson layer to be populated later
-//styles, popups and other layer options can be specified here
-var statesLayer = L.geoJson(false, {
-  style: function(feature) {
-    return {};
-  },
-  onEachFeature: function(feature, layer) {
-    layer.bindPopup(feature.properties.NEName + "</br>" + "  " + feature.properties.density);
-  }
-});
-
-// Load GeoJSON data, add it to the layer, and add that the map once the file is loaded
-$.getJSON("https://gist.githubusercontent.com/cak-opiq/0685cdd71daa2703ae0dc2541fae51b8/raw/bcf0e7b0c7a2b1ad01ee0db61c02ce81ab8f36db/KAL-hopList.json", function(data) {
-  statesLayer.addData(data).addTo(map);
-});
-
-var searchControl = new L.Control.Search({
-  layer: statesLayer,
-  propertyName: 'NEName',
-  circleLocation: false
-});
-
-searchControl.on('search_locationfound', function(e) {
-
-  e.layer.setStyle({
-    fillColor: '#3f0',
-    color: '#0f0'
-  });
-  if (e.layer._popup) e.layer.openPopup();
-
-}).on('search_collapsed', function(e) {
-
-  statesLayer.eachLayer(function(layer) { //restore feature color
-    statesLayer.resetStyle(layer);
-  });
-});
-
-map.addControl(searchControl); //inizialize search control
-
-        
+        var counties = $.ajax({
+            url: "https://gist.githubusercontent.com/cak-opiq/0685cdd71daa2703ae0dc2541fae51b8/raw/bcf0e7b0c7a2b1ad01ee0db61c02ce81ab8f36db/KAL-hopList.json",
+            dataType: "json",
+            success: console.log("County data successfully loaded."),
+            error: function(xhr) {
+                alert(xhr.statusText)
+            }
+        })
+        $.when(counties).done(function() {
+            var map = L.map('map')
+                .setView([-2, 112], 7);
+            var basemap = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+            // Add requested external GeoJSON to map
+            var kyCounties = L.geoJSON(counties.responseJSON).addTo(map);
+        });
     </script>
 </body>
 
