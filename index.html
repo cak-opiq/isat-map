@@ -46,7 +46,12 @@
             // Add requested external GeoJSON to map
             var kyCounties = L.geoJSON(counties.responseJSON,{
 			onEachFeature: function(feature, marker) {
-				marker.bindPopup('<h4 style="color:'+feature.properties.NEName+'">'+ feature.properties.FEName +'</h4>');
+				marker.bindPopup(feature.properties.NEName +' - '
+						+ feature.properties.FEName +'\r\n'
+						+ feature.properties.Config +'\r\n'
+						+ feature.properties.Eqp +'\r\n'
+						+ feature.properties.NEID +' - '
+						+ feature.properties.FEID +'\r\n' );
 			}
 		}).addTo(map);
         });
