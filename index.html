@@ -44,7 +44,7 @@
                 maxZoom: 19
             }).addTo(map);
             // Add requested external GeoJSON to map
-            var kyCounties = L.geoJSON(counties.responseJSON{
+            var kyCounties = L.geoJSON(counties.responseJSON,{
 			onEachFeature: function(feature, marker) {
 				marker.bindPopup('<h4 style="color:'+feature.properties.NEName+'">'+ feature.properties.FEName +'</h4>');
 			}
