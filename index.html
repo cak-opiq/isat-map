@@ -47,9 +47,9 @@
             var kyCounties = L.geoJSON(counties.responseJSON,{
 			onEachFeature: function(feature, marker) {
 				marker.bindPopup(feature.properties.NEName +' - '
-						+ feature.properties.FEName +'\r\n'
-						+ feature.properties.Config +'\r\n'
-						+ feature.properties.Eqp +'\r\n'
+						+ feature.properties.FEName +'<br/>'
+						+ feature.properties.Config +'<br/>'
+						+ feature.properties.Eqp +'<br/>'
 						+ feature.properties.NEID +' - '
 						+ feature.properties.FEID +'\r\n' );
 			}
