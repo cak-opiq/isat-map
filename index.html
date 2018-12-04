@@ -54,6 +54,18 @@
 						+ feature.properties.FEID +'\r\n' );
 			}
 		}).addTo(map);
+		
+		        var searchControl = new L.Control.Search({
+        layer: map,
+        propertyName: 'FEName',
+        marker: false,
+        moveToLocation: function(latlng, title, map) {
+            //map.fitBounds( latlng.layer.getBounds() );
+            var zoom = map.getBoundsZoom(latlng.layer.getBounds());
+            map.setView(latlng, zoom); // access the zoom
+        }
+    });
+		
         });
         
     </script>
