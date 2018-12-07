@@ -18,15 +18,49 @@
             bottom: 0;
             width: 100%;
         }
+        #info {
+    bottom: 0;
+    position: absolute;
+    background: oldlace;
+    z-index: 999;
+    opacity: 0.7;
+}
+
+
     </style>
 </head>
 
 <body>
+
+
+
     <div id="map"></div>
+    <div id="info"></div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
     <script src="https://tracedetrail.com/assets/lib3/Leaflet-search/src/leaflet-search.js"></script>
     <script>
+
+        var map = L.map('map').setView([-2, 112], 7);
+        var basemap1 = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            });
+        var basemap2 = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            attribution: 'GeoJSON Network Analysis | <a href="http://www.portfolio.alikilic.org">Ali KILIÇ | Sr. GIS Developer</a>',
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            });
+
+var baseLayers = {
+    "OpenStreet": basemap1,
+    "Google": basemap2
+};
+
+
+L.control.layers(baseLayers).addTo(map);
+
         var counties = $.ajax({
             url: "https://gist.githubusercontent.com/cak-opiq/0685cdd71daa2703ae0dc2541fae51b8/raw/12b76420a34aea34917e00cb8fcac776e7f4a1c5/KAL-hopList.json",
             dataType: "json",
@@ -35,29 +69,116 @@
                 alert(xhr.statusText)
             }
         })
+
+var sitelist = $.ajax({
+            url: "https://gist.githubusercontent.com/cak-opiq/1ab388d20367c01e51e7b194244590f1/raw/7e1cdfa04d08362166ff16c4ffbd19ed9e1d6eb9/KAL-SiteList.geojson",
+            dataType: "json",
+            success: console.log("Site List data successfully loaded."),
+            error: function(xhr) {
+                alert(xhr.statusText)
+            }
+        })
+
+var melist = $.ajax({
+            url: "https://gist.githubusercontent.com/cak-opiq/df7cfe3201ac404d6e3075a27c846783/raw/f4d63833c372546667dc0359bd0778c49f3232ce/ME_List.geojson",
+            dataType: "json",
+            success: console.log("Site List data successfully loaded."),
+            error: function(xhr) {
+                alert(xhr.statusText)
+            }
+        })
+
+
+
         $.when(counties).done(function() {
-            var map = L.map('map')
-                .setView([-2, 112], 7);
-            var basemap = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(map);
+            
             // Add requested external GeoJSON to map
             var kyCounties = L.geoJSON(counties.responseJSON,{
-			onEachFeature: function(feature, marker) {
-				marker.bindPopup(feature.properties.NEName +' - '
+			onEachFeature: function(feature, layer) {
+ //               layer.setStyle({
+   //             color: 'red',
+     //                   weight: 4,
+       //                 opacity: .7,
+         //               dashArray: '2,8',
+           //             lineJoin: 'round'
+             //         });
+				layer.bindPopup(feature.properties.NEName +' - '
 						+ feature.properties.FEName +'<br/>'
 						+ feature.properties.Config +'<br/>'
 						+ feature.properties.Eqp +'<br/>'
 						+ feature.properties.NEID +' - '
-						+ feature.properties.FEID +'\r\n' );
+						+ feature.properties.FEID +'\r\n' ).addTo(map);
+
+                layer.on({
+                    contextmenu: function showResultsInDiv() {
+                        var d = document.getElementById('info');
+                        d.innerHTML = "";
+                            for (prop in feature.properties){
+                            d.innerHTML += prop+": "+feature.properties[prop]+"<br>";
+                            }
+                       // console.log(d.innerHTML);
+
+                           L.marker(layer.getBounds().getCenter(), {
+                              icon: L.divIcon({
+                                className: 'label',
+                                html: feature.properties.Config,
+                               // iconSize: [100, 40]
+                              })
+                            }).addTo(map);  
+                    }
+                });
+
+
+              
+
 			}
-		}).addTo(map);
+		});
+
+        $.when(sitelist).done(function() {
+            L.geoJSON(sitelist.responseJSON, {
+                pointToLayer: function(feature, latlng) {
+                return new L.marker(latlng, {
+                      icon: L.divIcon({
+                        iconAnchor:[20,-5],
+                        className: 'label',
+                        html: feature.properties['Site ID NE'] + '<br/>' + feature.properties['Site Name NE']
+                       // iconSize: [100, 40]
+                      })
+                    });
+                }
+            }).addTo(map);
+
+        });
 		
-		        var searchControl = new L.Control.Search({
-        layer: map,
-        propertyName: 'FEName',
+        $.when(melist).done(function() {
+            L.geoJSON(melist.responseJSON, {
+                
+                onEachFeature: function(feature, layer) {
+                    layer.on({
+                    contextmenu: function showResultsInDiv() {
+                        return new   L.marker(layer._latlng, {
+                              icon: L.divIcon({
+                                iconAnchor:[0,25],
+                                className: 'label',
+                                html: feature.properties.SiteName,
+                               // iconSize: [100, 40]
+                              })
+                            }).addTo(map);  
+                        }
+                    });
+                },
+                pointToLayer: function(feature, latlng) {
+                return new L.CircleMarker(latlng, {radius: 8, fillOpacity: 0.85, color: 'red'});
+                }
+
+            }).addTo(map);
+
+        });
+
+
+		var searchControl = new L.Control.Search({
+        layer: kyCounties,
+        propertyName: 'NEName',
         marker: false,
         moveToLocation: function(latlng, title, map) {
             //map.fitBounds( latlng.layer.getBounds() );
@@ -65,9 +186,10 @@
             map.setView(latlng, zoom); // access the zoom
         }
     });
-	map.addControl( searchControl );	
+		map.addControl( searchControl );
         });
         
+
     </script>
 </body>
 
