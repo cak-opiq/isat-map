@@ -1,0 +1,307 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        path.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+#tooltip {
+    position: fixed;
+    left: 5px;
+    top:10px;
+    white-space: pre;
+    font-family: calibri;
+    opacity: 0.4;
+    z-index: 999;
+    background-color: black;
+    color: white;
+}
+path.Air.Off {
+    stroke: #d77c46;
+    stroke-dasharray: 3,5;
+    stroke-width: 3;
+}
+path.Air.On {
+    stroke: blue;
+    stroke-width: 3;
+}
+
+marker#licensing {
+  fill: green;
+}
+
+path.link.licensing {
+  stroke: green;
+}
+
+path.link.resolved {
+  stroke-dasharray: 0,2 1;
+}
+
+circle {
+  fill: #ccc;
+  stroke: #333;
+  stroke-width: 1.5px;
+}
+
+circle.fixed {
+  fill: #f00;
+}
+
+text {
+  font: 10px sans-serif;
+  pointer-events: none;
+}
+
+text.shadow {
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-opacity: .8;
+}
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    </head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.4.11/d3.min.js"></script>
+<div id="chart"></div>
+    <script type="text/javascript">
+/*
+      var links = [{source: "Microsoft", target: "Amazon", type: "licensing"},
+{source: "Microsoft", target: "Amazon", type: "licensing"},
+{source: "Microsoft", target: "Amazon", type: "licensing"},
+             {source: "Microsoft", target: "Amazon", type: "suit"},
+             {source: "Samsung", target: "Apple", type: "suit"},
+             {source: "Microsoft", target: "Amazon", type: "resolved"}];
+*/
+
+//sort links by source, then target
+
+
+!(function(){
+    google.load("visualization", "1");
+    google.setOnLoadCallback(init);
+
+    function init() {
+        var query = new google.visualization.Query("https://docs.google.com/spreadsheet/ccc?key=1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E");
+               //     1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E
+        query.setQuery("select L,M,AD,AE,B,I,J,P,BG,BH,AA,AB,BJ"); //SQLに似た構文でフィルタをかけることができる。
+        query.send(handleQueryResponse );
+    }
+    function handleQueryResponse(response){
+        //console.log(response.getDataTable());
+        var data = response.getDataTable();
+
+        var DataKolom = new Array(data.getNumberOfColumns());
+        for (var i=0; i<data.getNumberOfColumns(); i++){
+            DataKolom[i]=data.getColumnLabel(i);
+        }
+
+        //console.log(data);
+
+        var DataArray = new Array(data.getNumberOfRows());
+        for (var row = 0; row < data.getNumberOfRows(); row++) {
+             DataArray[row] = new Array(data.getNumberOfColumns());
+            for (var col = 0, n = data.getNumberOfColumns(); col < n; col++) {
+                if(col > 0){
+                    DataArray[row][col] = data.getValue(row, col); //万人単位に変換
+                }else{
+                    DataArray[row][col] = data.getValue(row, col);
+                }
+            }    
+        }
+       // console.log(DataArray);
+       show(flatJSON(DataArray,DataKolom));
+
+        function flatJSON(datas,DataKolom){
+
+            var objSuccess={};
+            objSuccess['links']=[];
+
+            //console.log(JSON.stringify(objSuccess));
+                
+              for (var i =0; i<datas.length; i++){
+                var fitur= {};
+                fitur['source']=datas[i][5];
+                fitur['target']=datas[i][10];
+                
+                for (var j=0; j<DataKolom.length; j++){
+                    var atribut = DataKolom[j];
+                    fitur[atribut]=datas[i][j];
+                }
+
+                objSuccess.links.push(fitur);     
+              
+              }
+              
+              return objSuccess;
+            //var hasil = JSON.stringify(datas.length);
+              //var hasil = JSON.stringify(fitur);
+              //console.log(objSuccess);
+             // console.log(JSON.stringify(objSuccess, null, ''));
+                                                   
+        }
+
+
+    };
+
+})();
+
+
+
+//show(links);
+function show(data){
+var tooltip = d3.select("#chart")
+    .append("div")
+      .attr("id", "tooltip")
+     ;
+
+function mouseover(d){
+  tooltip.html=d.EQUIPMENT_SPECIFICATION;
+  $('#tooltip').text(d.EQUIPMENT_SPECIFICATION + '\r\n'
+        + d.A_SITE_ID + ' | '+ d.B_SITE_ID + ' ; '
+        + d.A_SITE_NAME + ' | '+ d.B_SITE_NAME + '\r\n'
+        + d.STATUS + ' | '
+        + d.SERVICE + '|'
+        + d.NO + '\r\n');
+  tooltip.transition()
+    .duration(200)
+}
+
+var links={};
+links=data.links;
+console.log(data);
+
+links.sort(function(a,b) {
+    if (a.source > b.source) {return 1;}
+    else if (a.source < b.source) {return -1;}
+    else {
+        if (a.target > b.target) {return 1;}
+        if (a.target < b.target) {return -1;}
+        else {return 0;}
+    }
+});
+//any links with duplicate source and target get an incremented 'linknum'
+for (var i=0; i<links.length; i++) {
+    if (i != 0 &&
+        links[i].source == links[i-1].source &&
+        links[i].target == links[i-1].target) {
+            links[i].linknum = links[i-1].linknum + 1;
+        }
+    else {links[i].linknum = 1;};
+};
+
+var nodes = {};
+
+// Compute the distinct nodes from the links.
+links.forEach(function(link) {
+  link.source = nodes[link.source] || (nodes[link.source] = {name: link.source, alias:link.A_SITE_NAME});
+  link.target = nodes[link.target] || (nodes[link.target] = {name: link.target,  alias:link.B_SITE_NAME});
+});
+
+var w = 4000,
+    h = 4000;
+    var distant=40;
+
+var force = d3.layout.force()
+    .nodes(d3.values(nodes))
+    .links(links)
+    .size([w, h])
+    .linkDistance(distant)
+    .charge(-200)
+    .on("tick", tick)
+    .start();
+
+var drag = force.drag()
+    .on("dragstart", dragstart);
+
+var svg = d3.select("body").append("svg:svg")
+    .attr("width", w)
+    .attr("height", h);
+
+// Per-type markers, as they don't inherit styles.
+svg.append("svg:defs").selectAll("marker")
+    .data(["suit", "licensing", "resolved"])
+  .enter().append("svg:marker")
+    .attr("id", String)
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 15)
+    .attr("refY", -1.5)
+    .attr("markerWidth", 3)
+    .attr("markerHeight", 3)
+    .attr("orient", "auto")
+  .append("svg:path")
+    .attr("d", "M0,-5L10,0L0,5");
+
+var path = svg.append("svg:g").selectAll("path")
+    .data(force.links())
+  .enter().append("svg:path")
+    .attr("class", function(d) { return "link " + d.STATUS; })
+ //   .attr("marker-end", function(d) { return "url(#suit)"; })
+    .on("click", function(d) {
+      alert(d.EQUIPMENT_SPECIFICATION);
+      console.log(d);
+    })
+    .on("mouseover", function(d){mouseover(d)})
+    ;
+
+var circle = svg.append("svg:g").selectAll("circle")
+    .data(force.nodes())
+  .enter().append("svg:circle")
+    .attr("r", 6)
+    .on("dblclick", dblclick)
+    .call(force.drag);
+
+var text = svg.append("svg:g").selectAll("g")
+    .data(force.nodes())
+  .enter().append("svg:g");
+
+// A copy of the text with a thick white stroke for legibility.
+text.append("svg:text")
+    .attr("x", 8)
+    .attr("y", ".31em")
+   // .attr("class", "shadow")
+    .text(function(d) { return d.name; });
+
+text.append("svg:text")
+    .attr("x", 8)
+    .attr("y", "1.2em")
+    .text(function(d) { return d.alias; });
+
+// Use elliptical arc path segments to doubly-encode directionality.
+function tick() {
+  path.attr("d", function(d) {
+    var dx = d.target.x - d.source.x,
+        dy = d.target.y - d.source.y,
+        dr = 5*distant/d.linknum;  //linknum is defined above
+    return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+  });
+
+  circle.attr("transform", function(d) {
+    return "translate(" + d.x + "," + d.y + ")";
+  });
+
+  text.attr("transform", function(d) {
+    return "translate(" + d.x + "," + d.y + ")";
+  });
+}
+
+
+function dblclick(d) {
+  d3.select(this).classed("fixed", d.fixed = false);
+}
+
+function dragstart(d) {
+  d3.select(this).classed("fixed", d.fixed = true);
+}
+
+}
+
+
+    </script>
+</body>
+</html>
