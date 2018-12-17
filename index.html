@@ -8,77 +8,327 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
     <link rel="stylesheet" href="https://tracedetrail.com/assets/lib3/Leaflet-search/src/leaflet-search.css" />
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-        }
-        #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 100%;
-        }
-        #info {
-    bottom: 0;
-    position: absolute;
-    background: oldlace;
-    z-index: 999;
-    opacity: 0.7;
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
 }
-
-
+        #map {
+        //    position: absolute;
+        //    top: 0;
+        //    bottom: 0;
+            width: 80%;
+            float: left;
+            height: 100%;
+        }
+    #hoplist {
+        width: calc(20% - 8px);
+        height: 50%;
+        float: right;
+        overflow-y: scroll;
+        margin: 0px;
+        position: relative;
+        list-style-position: inside;
+        list-style: none;
+        font-family: calibri;
+        font-size: 11px;
+        padding-left: 0px;
+    }
     </style>
 </head>
 
 <body>
-
-
-
     <div id="map"></div>
-    <div id="info"></div>
+    <ul id="hoplist"></ul>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
     <script src="https://tracedetrail.com/assets/lib3/Leaflet-search/src/leaflet-search.js"></script>
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
     <script>
 
-        var map = L.map('map').setView([-2, 112], 7);
-        var basemap1 = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            });
-        var basemap2 = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            attribution: 'GeoJSON Network Analysis | <a href="http://www.portfolio.alikilic.org">Ali KILIÇ | Sr. GIS Developer</a>',
-            maxZoom: 20,
-            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-            });
+        !(function(){
+    google.load("visualization", "1");
+    google.setOnLoadCallback(init);
 
-var baseLayers = {
-    "OpenStreet": basemap1,
-    "Google": basemap2
-};
+    function init() {
+        var query = new google.visualization.Query("https://docs.google.com/spreadsheet/ccc?key=1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E");
+               //     1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E
+        query.setQuery("select L,M,AD,AE,B,I,J,P,BG,BH,AA,AB,BJ"); //SQLに似た構文でフィルタをかけることができる。
+        query.send(LinkhandlerResponse);
+
+        var query2 = new google.visualization.Query("https://docs.google.com/spreadsheets/d/1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E/gviz/tq?sheet=NDB_KRO&tq=");
+        query2.setQuery("select L,M,AC,AD,B,I,J,BH,AA,BM");
+        query2.send(LinkhandlerResponse);
+
+        var queryEJ = new google.visualization.Query("https://docs.google.com/spreadsheets/d/1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E/gviz/tq?sheet=NDB_EJ&tq=");
+        queryEJ.setQuery("select L,M,AD,AE,B,I,J,P,BG,BH,AA,AB,BM,BR,BO");
+        queryEJ.send(LinkhandlerResponse);
+
+        var queryHUB = new google.visualization.Query("https://docs.google.com/spreadsheets/d/1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E/gviz/tq?sheet=HUB&tq=");
+        queryHUB.setQuery("select D,E,A,B,C,F,G");
+        queryHUB.send(MerkerhandlerResponse);
+
+    }
+
+function LinkhandlerResponse(response){
+handleQueryResponse(response, 'LineString');
+}
+
+function MerkerhandlerResponse(response){
+handleQueryResponse(response, 'Point');
+}
+
+    function handleQueryResponse(response, type){
+        //console.log(response.getDataTable());
+        var data = response.getDataTable();
+        var DataKolom = new Array(data.getNumberOfColumns());
+        for (var i=0; i<data.getNumberOfColumns(); i++){
+            DataKolom[i]=data.getColumnLabel(i);
+        }
+       // console.log(DataKolom);
+
+        var DataArray = new Array(data.getNumberOfRows());
+        for (var row = 0; row < data.getNumberOfRows(); row++) {
+             DataArray[row] = new Array(data.getNumberOfColumns());
+            for (var col = 0, n = data.getNumberOfColumns(); col < n; col++) {
+                if(col > 0){
+                    DataArray[row][col] = data.getValue(row, col); //万人単位に変換
+                }else{
+                    DataArray[row][col] = data.getValue(row, col);
+                }
+            }    
+        }
+    //    console.log(DataArray);
+    //    DataArray.sort(function sortByPARK_NAME(a,b) {    return (a.properties.nama.toUpperCase() < b.properties.nama.toUpperCase()) ? -1 : ((a.properties.nama.toUpperCase() > b.properties.nama.toUpperCase()) ? 1 : 0);});
 
 
-L.control.layers(baseLayers).addTo(map);
 
-        var counties = $.ajax({
-            url: "https://gist.githubusercontent.com/cak-opiq/0685cdd71daa2703ae0dc2541fae51b8/raw/12b76420a34aea34917e00cb8fcac776e7f4a1c5/KAL-hopList.json",
-            dataType: "json",
-            success: console.log("County data successfully loaded."),
-            error: function(xhr) {
-                alert(xhr.statusText)
+
+        if (type=='Point'){
+         //   console.log(type);
+            show(getGeojson(DataArray,DataKolom,'Point'));
+        }
+
+        if (type=='LineString'){
+        //    console.log(type);
+         //   show(getGeojson(DataArray,DataKolom,'LineString'));
+         var gjsonhasil = getGeojson(DataArray,DataKolom,'LineString');
+         var hasil={};
+
+hasil = gjsonhasil.features.sort(function sortByPARK_NAME(a,b) {
+    return (a.properties.B_SITE_ID < b.properties.B_SITE_ID ? -1 : ((a.properties.B_SITE_ID > b.properties.B_SITE_ID) ? 1 : 0))});
+
+//console.log(JSON.stringify(hasil));
+gjsonhasil.features=hasil;
+//console.log(gjson);
+         show(gjsonhasil);
+        }
+
+
+        function getGeojson(datas,DataKolom,type){
+         //var ss = SpreadsheetApp.openById("1IfMpKca5UCTQny3_8XjzagsbZ8ArHGB_77QzOm5es6E");
+         // var  sheet= ss.getSheetByName('NDB_SS');
+          
+        var objSuccess = {};
+        objSuccess["type"] = "FeatureCollection";
+        objSuccess["features"] = [];
+
+        //console.log(JSON.stringify(objSuccess));
+            
+          for (var i =1; i<datas.length; i++){
+              var fitur= 
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": []
+                    },
+                    "properties": {
+                    }
+                };
+                fitur.geometry.type=type;
+
+            
+            
+            if(fitur.geometry.type == "LineString"){
+                for (var j=4; j<DataKolom.length; j++){
+                    var atribut = DataKolom[j];
+                    fitur.properties[atribut]=datas[i][j];
+                }
+                var nelat=datas[i][0];
+                var nelong=datas[i][1];
+                var felat=datas[i][2];
+                var felong=datas[i][3];
+                if(nelat && nelong && felat && felong){
+                    fitur.geometry.coordinates.push([nelat,nelong],[felat,felong]);
+                   //fitur.geometry.coordinates.push(nelat);
+                    objSuccess["features"].push(fitur);}                
+                 }
+
+            if(fitur.geometry.type == "Point"){
+                for (var j=2; j<DataKolom.length; j++){
+                    var atribut = DataKolom[j];
+                    fitur.properties[atribut]=datas[i][j];
+                }
+                var nelat=datas[i][0];
+                var nelong=datas[i][1];
+                if(nelat && nelong){
+                    fitur.geometry.coordinates.push(nelat,nelong);
+                   //fitur.geometry.coordinates.push(nelat);
+                    objSuccess["features"].push(fitur);}                
+                 }
+
             }
-        })
 
-var sitelist = $.ajax({
-            url: "https://gist.githubusercontent.com/cak-opiq/1ab388d20367c01e51e7b194244590f1/raw/7e1cdfa04d08362166ff16c4ffbd19ed9e1d6eb9/KAL-SiteList.geojson",
-            dataType: "json",
-            success: console.log("Site List data successfully loaded."),
-            error: function(xhr) {
-                alert(xhr.statusText)
+          
+          return objSuccess;
+
+//          var hasil = JSON.stringify(objSuccess);
+//          console.log(hasil);
+          
+          //return hasil;;
+            //return ContentService.createTextOutput(callback+'('+ JSON.stringify(hasil)+')').setMimeType(ContentService.MimeType.JAVASCRIPT);
+                                                
+        }
+
+    };
+
+})();
+    
+
+
+var map = L.map('map').setView([-2, 112], 7);
+var basemap = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+}).addTo(map);
+
+function show(datageo){
+        //    console.log(datageo);
+    // Add requested external GeoJSON to map
+    var kyCounties = L.geoJSON(datageo,{
+        pointToLayer: function(feature, latlng) {
+        
+                return L.circleMarker(latlng, {
+                radius:8,
+                opacity: .5,
+                color: 'red',
+                fillOpacity: 0.8
+
+                }).bindTooltip(feature.properties.Site_ID + ' | '+ feature.properties.Site_Name);
+            },
+
+        style: function(feature){
+            if(feature.properties.STATUS == 'Off Air'){ return {color:'black', dashArray:'5,20'};}
+            if(feature.properties.Remarks_1 == 'ME'){ 
+                return {color:'green'}; 
             }
-        })
 
+            
+        },
+                
+            
+		onEachFeature: function(feature, layer) {
+            var popupcontent = [];
+                for (var prop in feature.properties) {
+                    popupcontent.push(prop + ": " + feature.properties[prop]);
+                }
+                layer.bindPopup(popupcontent.join("<br />"));
+
+
+/*
+              L.marker(layer.getBounds().getCenter(), {
+                  icon: L.divIcon({
+                    className: 'label',
+                    html: feature.properties.Config,
+                   // iconSize: [100, 40]
+                  })
+                }).addTo(map); 
+*/
+			}
+		}).addTo(map);
+
+        kyCounties.eachLayer(function(layer){
+            if(layer.feature.geometry.type == 'LineString'){
+                $('#hoplist').append('<li data-value="' + layer._leaflet_id + '">'+ layer.feature.properties.A_SITE_NAME+  ' - ' + layer.feature.properties.B_SITE_NAME + '</li>');
+/*
+                L.marker(layer.getBounds().getCenter(), {
+                  icon: L.divIcon({
+                    className: 'label',
+                    html: bandwidth(layer),
+                   // iconSize: [100, 40]
+                  })
+                }).addTo(map); 
+*/
+            } else {
+
+            }
+                
+        //    }
+            }
+            
+        );
+
+     var hovered_id, layer;
+     var highlightStyle = {
+            weight: 8,
+            color: 'red',
+            dashArray: '',
+            fillOpacity: 0.7
+        };
+
+    $('#hoplist li').on('mouseenter', function(e){
+        hovered_id = $(e.target).data('value');
+        layer = kyCounties.getLayer(hovered_id); //your feature id here
+        if(undefined == layer){return}
+        layer.setStyle(highlightStyle);
+    }).on('mouseout', function(e){
+        kyCounties.resetStyle(layer);
+    }).on('dblclick', function(e){
+        //click_id = $(e.target).data('value');
+        layer = kyCounties.getLayer(hovered_id);
+        layer.openPopup();
+        var zoom = map.getBoundsZoom(layer.getBounds());
+            map.setView(layer.getBounds().getCenter(), zoom-3); 
+
+    });
+
+    function highlightFeature(e) {
+        var layer = e.target;
+        layer.setStyle(highlightStyle);
+    }
+
+    function resetHighlight(e) {
+        kyCounties.resetStyle(e.target);
+    }
+
+    function bandwidth(layer){
+       // console.log(layer);
+        if(undefined !==layer.feature.properties.EQUIPMENT_SPECIFICATION){
+            var bw=layer.feature.properties.EQUIPMENT_SPECIFICATION;
+                          let rslt = bw.split(';');
+                          return rslt[2] + rslt[3];
+        }
+        
+
+                      }
+
+/*	
+    var searchControl = new L.Control.Search({
+        layer: kyCounties,
+        propertyName: 'A_SITE_NAME',
+        marker: false,
+        moveToLocation: function(latlng, title, map) {
+            //map.fitBounds( latlng.layer.getBounds() );
+            var zoom = map.getBoundsZoom(latlng.layer.getBounds());
+            map.setView(latlng, zoom); // access the zoom
+        }    });
+	map.addControl( searchControl );
+*/
+}
+
+/*
 var melist = $.ajax({
             url: "https://gist.githubusercontent.com/cak-opiq/df7cfe3201ac404d6e3075a27c846783/raw/f4d63833c372546667dc0359bd0778c49f3232ce/ME_List.geojson",
             dataType: "json",
@@ -88,108 +338,17 @@ var melist = $.ajax({
             }
         })
 
-
-
-        $.when(counties).done(function() {
+$.when(melist).done(function() {
             
             // Add requested external GeoJSON to map
-            var kyCounties = L.geoJSON(counties.responseJSON,{
-			onEachFeature: function(feature, layer) {
- //               layer.setStyle({
-   //             color: 'red',
-     //                   weight: 4,
-       //                 opacity: .7,
-         //               dashArray: '2,8',
-           //             lineJoin: 'round'
-             //         });
-				layer.bindPopup(feature.properties.NEName +' - '
-						+ feature.properties.FEName +'<br/>'
-						+ feature.properties.Config +'<br/>'
-						+ feature.properties.Eqp +'<br/>'
-						+ feature.properties.NEID +' - '
-						+ feature.properties.FEID +'\r\n' ).addTo(map);
-
-                layer.on({
-                    contextmenu: function showResultsInDiv() {
-                        var d = document.getElementById('info');
-                        d.innerHTML = "";
-                            for (prop in feature.properties){
-                            d.innerHTML += prop+": "+feature.properties[prop]+"<br>";
-                            }
-                       // console.log(d.innerHTML);
-
-                           L.marker(layer.getBounds().getCenter(), {
-                              icon: L.divIcon({
-                                className: 'label',
-                                html: feature.properties.Config,
-                               // iconSize: [100, 40]
-                              })
-                            }).addTo(map);  
-                    }
-                });
-
-
-              
-
-			}
-		});
-
-        $.when(sitelist).done(function() {
-            L.geoJSON(sitelist.responseJSON, {
-                pointToLayer: function(feature, latlng) {
-                return new L.marker(latlng, {
-                      icon: L.divIcon({
-                        iconAnchor:[20,-5],
-                        className: 'label',
-                        html: feature.properties['Site ID NE'] + '<br/>' + feature.properties['Site Name NE']
-                       // iconSize: [100, 40]
-                      })
-                    });
+            var melisted = L.geoJSON(melist.responseJSON,{
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, {radius:5, color:'red'}); // The basic style
                 }
             }).addTo(map);
-
-        });
-		
-        $.when(melist).done(function() {
-            L.geoJSON(melist.responseJSON, {
-                
-                onEachFeature: function(feature, layer) {
-                    layer.on({
-                    contextmenu: function showResultsInDiv() {
-                        return new   L.marker(layer._latlng, {
-                              icon: L.divIcon({
-                                iconAnchor:[0,25],
-                                className: 'label',
-                                html: feature.properties.SiteName,
-                               // iconSize: [100, 40]
-                              })
-                            }).addTo(map);  
-                        }
-                    });
-                },
-                pointToLayer: function(feature, latlng) {
-                return new L.CircleMarker(latlng, {radius: 8, fillOpacity: 0.85, color: 'red'});
-                }
-
-            }).addTo(map);
-
-        });
-
-
-		var searchControl = new L.Control.Search({
-        layer: kyCounties,
-        propertyName: 'NEName',
-        marker: false,
-        moveToLocation: function(latlng, title, map) {
-            //map.fitBounds( latlng.layer.getBounds() );
-            var zoom = map.getBoundsZoom(latlng.layer.getBounds());
-            map.setView(latlng, zoom); // access the zoom
-        }
-    });
-		map.addControl( searchControl );
-        });
-        
-
+});
+ 
+*/
     </script>
 </body>
 
