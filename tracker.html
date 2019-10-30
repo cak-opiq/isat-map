@@ -1,0 +1,497 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Live GPS tracker,  with  Car Speedo, distance and very annoying voice, but it does work</title>
+<style>
+  html, body{
+  height:100%;
+  margin: 0;
+  padding: 0;
+	background-color: #000;
+	
+}
+
+#map {
+	height: 100%;
+	background-color: #ddd;
+}
+
+#dashboard {
+	position: absolute;
+	
+	text-align: center;
+	top: 10px;
+	right: 10px;
+	height: 40px;
+	background: black;
+	color: #00ff00;
+	font-family: Arial;
+	font-size: 1.8rem;
+	
+}
+#gps-signal {
+  color: #ffffff;
+  left: 10px;
+  position: absolute;
+  text-align: left;
+  top:10px;
+}
+
+#gps-bars {
+  display: inline-block;
+}
+
+#gps-bars div {
+  background: #FFFFFF;
+  display: inline-block;
+  height: 30px;
+  margin: 0 1px;
+  width: 15px;
+}
+
+#gps-bars.one #bar1,
+#gps-bars.two #bar1,
+#gps-bars.two #bar2,
+#gps-bars.three #bar1,
+#gps-bars.three #bar2,
+#gps-bars.three #bar3
+
+{
+  background: #00ff00;
+}
+
+#gps-message {
+  display: inline-block;
+  font-size: 15px;
+  padding: 3px 0 0;
+  vertical-align: top;
+}
+
+</style>
+<link rel="stylesheet" href="/fleet/ui/leaflet/leaflet-1.0.3/leaflet.css" />
+<script src="/fleet/ui/leaflet/leaflet.js"></script>
+<script>
+ if( (('speed')) == 0) {
+ var text = "your speed is less 5 km";
+var msg = new SpeechSynthesisUtterance();
+msg.text = text;  speechSynthesis.speak(msg);	
+      }
+  else {
+       var text =  "more than 5";
+	var msg = new SpeechSynthesisUtterance();
+msg.text =  text;
+speechSynthesis.speak(msg);	
+			   
+      }
+</script>
+
+</head>
+<body translate="no">
+<SECTION>
+&nbsp;<br />&nbsp;<br />&nbsp;<br />&nbsp;<br />&nbsp;<br />
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<div id="gps-signal">
+<div id="gps-bars">
+<div id="bar1"></div><div id="bar2"></div><div id="bar3"></div>
+</div>
+<div id="gps-message">
+Requesting GPS Location...
+</div>
+<a><span id="startLat"></span> <span id="startLon"></span></a>
+<br />
+<br />
+<a>
+<span style="color:lime">Distance : </span>
+</span>
+<span id="distance" style="color:white"> 0</span>
+<span style="color:lime">Km</span>
+<span id="currentLat" style="color:black"></span>
+<span id="currentLon" style="color:black"></span>
+</a>
+</SECTION>
+<script>
+      window.onload = function() {
+        var startPos;
+      
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(function(position) {
+            startPos = position;
+            document.getElementById("startLat").innerHTML = startPos.coords.latitude;
+            document.getElementById("startLon").innerHTML = startPos.coords.longitude;
+          }, function(error) {
+            alert("Error occurred. Error code: " + error.code);
+            // error.code can be:
+            //   0: unknown error
+            //   1: permission denied
+            //   2: position unavailable (error response from locaton provider)
+            //   3: timed out
+          });
+      
+          navigator.geolocation.watchPosition(function(position) {
+            document.getElementById("currentLat").innerHTML = position.coords.latitude;
+            document.getElementById("currentLon").innerHTML = position.coords.longitude;
+            document.getElementById("distance").innerHTML =
+              calculateDistance(startPos.coords.latitude, startPos.coords.longitude,
+                                position.coords.latitude, position.coords.longitude);
+          });
+        }
+      };
+      
+      // Reused code - copyright Moveable Type Scripts - retrieved May 4, 2010.
+      // https://www.movable-type.co.uk/scripts/latlong.html
+      // Under Creative Commons License http://creativecommons.org/licenses/by/3.0/
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        var R = 6371; // km
+        var dLat = (lat2-lat1).toRad();
+        var dLon = (lon2-lon1).toRad();
+        var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1.toRad()) * Math.cos(lat2.toRad()) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        var d = R * c;
+        return d;
+      }
+      Number.prototype.toRad = function() {
+        return this * Math.PI / 180;
+      }
+    </script>
+<script>	
+
+ </script>
+<div id="map"></div>
+<span id="dashboard"></span>
+
+<script id="rendered-js">
+      var
+map,
+marker,
+line,
+dash,
+tiles = 'http://tiles.maps.sputnik.ru/tiles/kmt2/{z}/{x}/{y}.png';
+function markerIcon() {
+  var myIcon = L.icon({ iconUrl: 'http://gizmobrewworks.com/wp-content/uploads/leaflet-maps-marker-icons/car.png',
+    className: 'nav-arrow',
+    iconSize: [50, 30],
+    iconAnchor: [12, 12],
+    popupAnchor: [-3, 12] });
+
+  return myIcon;
+}
+
+function rotateElement(selector, amount) {
+  var el = document.querySelector(selector);
+  if (!(el && el.style && el.style.transform)) {
+    return;
+  }
+
+  el.style.transform = ('' + el.style.transform).replace(/\s*?rotate\(\d+deg\)/g, '') + ' rotate(' + amount + 'deg)';
+}
+
+function init() {
+  map = L.map('map', {
+    center: [55.75, 37.62],
+    zoom: 1 });
+
+
+
+  dash = L.DomUtil.get('dashboard');
+
+  L.tileLayer(
+  'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    minZoom: 1,
+    maxZoom: 20 }).
+
+
+
+  addTo(map);
+
+  map.on('locationfound', function (e) {
+    // console.log('prefZoom', map._prefZoom);
+    if (map.getZoom() !== map._prefZoom) {
+      //map.setZoom(map._prefZoom);
+    }
+
+    if (!line) {
+      line = L.polyline([], { color: 'blue', weight: 4 }).addTo(map);
+    }
+
+    line.addLatLng(e.latlng);
+    if (!marker) {
+      marker = L.marker(e.latlng, { icon: markerIcon() });
+      map.addLayer(marker);
+    } else
+    {
+      marker.setLatLng(e.latlng);
+    }
+
+    var info = ['' +
+    'Speed : ' + (e.speed && Math.floor(e.speed * 36 / 10) || 0) + '  Km/h'];
+
+
+
+    if (e.speed > 10 && e.speed < 20)
+
+    {
+      var text = " between 10 and 20";
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      speechSynthesis.speak(msg);
+
+    } else
+    if (e.speed > 20 && e.speed < 30) {
+      var text = "between 20 and 30";
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      speechSynthesis.speak(msg);
+    } else
+
+    if (e.speed > 30 && e.speed < 40) {
+      var text = "between 30 and 40";
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      speechSynthesis.speak(msg);
+    } else
+
+    if (e.speed > 40 && e.speed < 50) {
+      var text = "between 40 and 50";
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      speechSynthesis.speak(msg);
+    } else
+
+    if (e.speed > 50 && e.speed < 60) {
+      var text = "bloody, hell, 60";
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      speechSynthesis.speak(msg);
+    }
+
+    if (e.heading) {
+      // info.push('heading:' + e.heading);			
+      rotateElement('.nav-arrow', e.heading);
+    }
+
+    dash.innerHTML = info.join('<br>');
+  });
+
+
+
+
+  map.locate({
+    watch: true,
+    setView: true,
+    maxZoom: 18,
+    enableHighAccuracy: true
+    // maximumAge: 1000
+  });
+
+
+
+}
+
+
+
+
+init();
+
+L.Map.include({
+  zoomIn: function (delta, options) {
+    this._prefZoom = this._zoom + (delta || 1);
+    return this.setZoom(this._prefZoom, options);
+  },
+
+  zoomOut: function (delta, options) {
+    this._prefZoom = this._zoom - (delta || 1);
+    return this.setZoom(this._prefZoom, options);
+  } });
+
+
+
+
+
+
+
+
+
+
+
+
+
+(function ($) {
+
+  var settings = {
+    debug: localStorage['settings.debug'] === 'true' || false,
+    units: localStorage['settings.units'] || 'metric', // or 'imperial'
+    geoQueryInterval: 1000 // milliseconds
+  };
+
+  var points = [];
+  var $val = $('#speed .val');
+  var $units = $('#speed .units');
+
+  var $time = $('#geolocation-debug .time');
+  var $lat = $('#geolocation-debug .lat');
+  var $lon = $('#geolocation-debug .lon');
+  var $acc = $('#geolocation-debug .acc');
+  var $speed = $('#geolocation-debug .speed');
+
+  var $gpsBars = $('#gps-bars');
+  var $gpsMessage = $('#gps-message');
+
+  var EARTH_RADIUS = 6378000; // meters
+
+
+  if ('geolocation' in navigator) {
+    initSettings();
+    initSpeedometer();
+  } else {
+    alert("I'm sorry, but geolocation services are not supported by your browser.");
+  }
+
+  function initSettings() {
+    $('#settings-toggle').click(function () {
+      $('body').toggleClass('settings');
+    });
+    updateSettings();
+
+    $('#units').val(settings.units).change(function () {
+      settings.units = $(this).val();
+      localStorage['settings.units'] = settings.units;
+      updateSettings();
+    });
+
+    $('#debug').attr('checked', settings.debug).change(function () {
+      settings.debug = $(this).is(':checked');
+      localStorage['settings.debug'] = settings.debug;
+      updateSettings();
+    });
+  }
+
+  function updateSettings() {
+    if (settings.debug) {
+      $('body').addClass('debug');
+    } else {
+      $('body').removeClass('debug');
+    }
+
+    if (settings.units === 'metric') {
+      $units.text('km/h');
+    } else {
+      $units.text('mph');
+    }
+  }
+
+  function initSpeedometer() {
+    navigator.geolocation.watchPosition(
+    function (position) {
+      addPoint(position);
+    },
+    function () {
+      alert('Error getting your location: ' + err.message);
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: settings.geoQueryInterval
+      //, timeout:27000 // This is buggy in Firefox - See https://bugzilla.mozilla.org/show_bug.cgi?id=732923
+    });
+
+  }
+
+  function addPoint(position) {
+    var point = {
+      time: new Date(),
+      timestamp: navigator.platform === 'iPhone' || navigator.platform === 'iPad' ?
+      position.timestamp / 1000 :
+      position.timestamp,
+      lat: position.coords.latitude,
+      lon: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      speed: position.coords.speed * 3600 / 1609 };
+
+    points.push(point);
+    updatePoint(point);
+    updateSpeed();
+    updateGPSAccuracy(point);
+  }
+
+  function updatePoint(point) {
+    if (settings.debug) {
+      var d = new Date(point.timestamp);
+      $time.text(d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds());
+      $lat.text(point.lat.toFixed(2));
+      $lon.text(point.lon.toFixed(2));
+      $acc.text(point.accuracy);
+      $speed.text(point.speed);
+    }
+  }
+
+  function updateSpeed() {
+    if (points.length > 1) {
+      var p1 = points[points.length - 2];
+      var p2 = points[points.length - 1];
+      var distance = distanceBetween(p2, p1); // meters
+      var time = (p2.timestamp - p1.timestamp) / 1000 / 60 / 60; // hours
+      var divisor = settings.units === 'metric' ? 1000 : 1609;
+      if (time > 0) {
+        var speed = distance / time / divisor;
+        if (speed < 5) {
+          speed = speed.toFixed(1);
+
+
+        } else {
+          speed = Math.round(speed);
+
+
+        }
+        $val.text(speed);
+
+
+      }
+    }
+  }
+
+  function toRadians(degrees) {
+    return degrees * 3.1415926 / 180;
+  }
+
+  function distanceBetween(point1, point2) {
+    // Since our points should be close to one another, we use the cheaper
+    // Pythagorasâ€™ theorem on an equirectangular projection.
+    var lat1 = toRadians(point1.lat);
+    var lat2 = toRadians(point2.lat);
+    var lon1 = toRadians(point1.lon);
+    var lon2 = toRadians(point2.lon);
+    var x = (lon2 - lon1) * Math.cos((lat1 + lat2) / 2);
+    var y = lat2 - lat1;
+    return Math.sqrt(x * x + y * y) * EARTH_RADIUS;
+  }
+
+  function updateGPSAccuracy(point) {
+    if (point.accuracy > 25) {
+      $gpsBars.addClass('one').removeClass('two').removeClass('three');
+      $gpsMessage.text('GPS Weak');
+    } else if (point.accuracy > 6) {
+      $gpsBars.addClass('two').removeClass('one').removeClass('three');
+      $gpsMessage.text('GPS OK');
+    } else {
+      $gpsBars.addClass('three').removeClass('one').removeClass('two');
+      $gpsMessage.text('GPS Good');
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+})(jQuery);
+      //# sourceURL=pen.js
+    </script>
+</body>
+</html>
